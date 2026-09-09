@@ -1,6 +1,6 @@
 {
   "name": "orca-prospect",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Orça Prospect — prospecção B2B de empresas com potencial de automação de orçamentos para o OrçaAI.",
   "engines": {

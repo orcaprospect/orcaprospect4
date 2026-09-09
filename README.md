@@ -8,6 +8,32 @@ O Orça Prospect permite buscar empresas por **segmento, cidade, estado, país e
 
 ---
 
+## ⚡ Para achar empresas: quais APIs ativar
+
+**A busca já funciona sem nenhuma chave**, porque o provider OpenStreetMap vem ativo por padrão. Você só decide a qualidade/origem dos resultados:
+
+| Fonte | O que configurar no `.env.local` / Vercel | Custo | O que entrega |
+|---|---|---|---|
+| **OpenStreetMap** ✅ (padrão, já ativa) | **Nada.** Opcional: `OSM_ENABLED=true` | Grátis, **sem chave** | Empresas **reais** (nome, endereço, site/telefone/Instagram quando divulgados no OSM). A busca precisa de **cidade e/ou estado** preenchidos. |
+| **Google Places API (New)** | `GOOGLE_MAPS_API_KEY=sua-chave` + `DEMO_MODE=false` | Pago por consulta (tem crédito grátis mensal no Google Cloud) | Resultados mais completos: categoria, telefone, site, endereço de praticamente qualquer empresa. |
+| **Modo demonstração** | `DEMO_MODE=true` | Grátis | Empresas **fictícias** (marcadas como "DADOS DE DEMONSTRAÇÃO") para testar o sistema. |
+| **API própria** | `CUSTOM_PROVIDER_URL=...` (+ `CUSTOM_PROVIDER_API_KEY=`) | Depende da sua fonte | Sua própria fonte de empresas (formato em `providers/custom-provider.example.ts`). |
+
+Ordem de prioridade automática (`DATA_PROVIDER=auto`): demo (se ligado) → Google (se houver chave) → API própria → OpenStreetMap.
+
+**Como pegar a chave do Google (4 passos):**
+1. Acesse **https://console.cloud.google.com/** → crie um projeto (ex.: `orca-prospect`).
+2. Menu **APIs e serviços → Biblioteca** → busque **"Places API (New)"** → **Ativar**.
+3. **APIs e serviços → Credenciais → Criar credenciais → Chave de API** → copie.
+4. Cole em `GOOGLE_MAPS_API_KEY` (no `.env.local` e/ou na Vercel) e **não comite a chave** (o `.gitignore` já protege os `.env*`).
+
+> ⚠️ Importante: com `DEMO_MODE=true` as buscas retornam empresas fictícias.
+> **Para dados reais, use `DEMO_MODE=false`** — aí a busca usa OpenStreetMap (sem chave) ou Google (com chave).
+
+Detalhes completos por fonte: [seção 6](#6-como-configurar-as-apis).
+
+---
+
 ## Sumário
 
 1. [O que é o projeto](#1-o-que-é-o-projeto)

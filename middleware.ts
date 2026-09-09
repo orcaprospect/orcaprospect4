@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE } from "@/lib/auth-cookie";
+import { SESSION_COOKIE, SESSION_FALLBACK_SECRET } from "@/lib/auth-cookie";
+import { verifySessionTokenEdge } from "@/lib/session-edge";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware-client";
 
@@ -7,9 +8,10 @@ import { createSupabaseMiddlewareClient } from "@/lib/supabase/middleware-client
  * Proteção de rotas + renovação de sessão.
  *
  * - Modo Supabase Auth (NEXT_PUBLIC_SUPABASE_URL + ANON_KEY): valida a
- *   sessão via @supabase/ssr, renovando os tokens (cookies) a cada passagem.
- * - Modo local: filtra por presença do cookie próprio (a validação
- *   criptográfica acontece no servidor, em lib/auth.ts).
+ *   sessão via @supabase/ssr, renovando os tokens (cookies). Erros de
+ *   rede NUNCA derrubam o middleware (evita "tela branca").
+ * - Modo local: valida a ASSINATURA do cookie (não só a presença) para
+ *   que cookies órfãos/expirados não causem loop de redirecionamento.
  */
 const PROTECTED_PREFIXES = ["/dashboard", "/search", "/leads", "/favorites", "/settings"];
 const AUTH_PAGES = ["/login"];
@@ -28,10 +30,20 @@ export async function middleware(req: NextRequest) {
   // ---- Modo Supabase Auth ----
   if (supabaseAuthConfigured()) {
     const { supabase, response } = createSupabaseMiddlewareClient(req);
-    const { data } = await supabase.auth.getUser(); // valida + renova tokens
-    const user = data.user ?? null;
+    let user = null;
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error) user = data.user ?? null;
+    } catch (error) {
+      // Supabase inacessível (URL errada, rede, projeto pausado): trata
+      // como deslogado em vez de quebrar a requisição com erro 500.
+      console.error(
+        "[Orça Prospect] Falha ao validar sessão no Supabase:",
+        error instanceof Error ? error.message : error
+      );
+    }
 
-    if (isApi) return response; // APIs revalidam no servidor (401 JSON)
+    if (isApi) return response;
 
     const isProtected = PROTECTED_PREFIXES.some(
       (p) => pathname === p || pathname.startsWith(`${p}/`)
@@ -47,14 +59,19 @@ export async function middleware(req: NextRequest) {
   }
 
   // ---- Modo local (cookie assinado próprio) ----
-  const hasSession = req.cookies.has(SESSION_COOKIE);
   if (isApi) return NextResponse.next();
+
+  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  const sessionUserId = await verifySessionTokenEdge(
+    token,
+    process.env.SESSION_SECRET || SESSION_FALLBACK_SECRET
+  );
 
   const isProtected = PROTECTED_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
-  if (isProtected && !hasSession) return loginRedirect(req);
-  if (AUTH_PAGES.includes(pathname) && hasSession) {
+  if (isProtected && !sessionUserId) return loginRedirect(req);
+  if (AUTH_PAGES.includes(pathname) && sessionUserId) {
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     url.search = "";

@@ -8,7 +8,11 @@ export const dynamic = "force-dynamic";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getSessionUser();
-  if (!user) redirect("/login");
+  if (!user) {
+    // Sessão ausente/órfã: passa pelo /logout para LIMPAR o cookie antes de
+    // mostrar o login (evita loop middleware↔layout = "tela branca").
+    redirect("/logout");
+  }
 
   return (
     <ToastProvider>

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { getStore } from "@/lib/store";
 import { env } from "@/lib/env";
+import { SESSION_FALLBACK_SECRET } from "@/lib/auth-cookie";
 import { supabaseAuthConfigured } from "@/lib/supabase/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/types";
@@ -28,7 +29,7 @@ function secret(): string {
         "Configure uma chave aleatória (openssl rand -hex 32)."
     );
   }
-  return "orca-prospect-dev-secret-nao-use-em-producao";
+  return SESSION_FALLBACK_SECRET;
 }
 
 function hmac(payload: string): string {
