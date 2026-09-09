@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Database, Download, KeyRound, ShieldCheck, Trash2, User, X } from "lucide-react";
+import { Check, Database, Download, Info, KeyRound, ShieldCheck, Trash2, User, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,13 +15,17 @@ interface SettingsProps {
   user: { name: string; email: string };
   providers: ProviderStatus[];
   config: {
-    store: string;
+    storeMode: "postgres" | "json";
+    usingSupabase: boolean;
     databaseConfigured: boolean;
     demoMode: boolean;
     osmEnabled: boolean;
     googleConfigured: boolean;
     customConfigured: boolean;
     sessionSecretSet: boolean;
+    supabaseUrlSet: boolean;
+    supabaseAnonKeySet: boolean;
+    supabaseServiceKeySet: boolean;
   };
 }
 
@@ -253,32 +257,59 @@ DEMO_MODE=true`}
         </CardContent>
       </Card>
 
-      {/* Segurança / ambiente */}
+      {/* Banco de dados e ambiente */}
       <Card>
         <CardHeader>
-          <CardTitle>Ambiente</CardTitle>
+          <CardTitle>Banco de dados e ambiente</CardTitle>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2 text-sm text-slate-600">
-            <li className="flex items-center gap-2">
-              {config.sessionSecretSet ? (
-                <Check className="h-4 w-4 text-emerald-500" aria-hidden />
-              ) : (
-                <X className="h-4 w-4 text-amber-500" aria-hidden />
-              )}
-              SESSION_SECRET {config.sessionSecretSet ? "configurado" : "não definido (use um valor aleatório em produção)"}
-            </li>
-            <li className="flex items-center gap-2">
+          <ul className="space-y-2.5 text-sm text-slate-600">
+            <li className="flex items-start gap-2">
               {config.databaseConfigured ? (
-                <Check className="h-4 w-4 text-emerald-500" aria-hidden />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
               ) : (
-                <X className="h-4 w-4 text-slate-400" aria-hidden />
+                <X className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
               )}
-              DATABASE_URL {config.databaseConfigured ? "configurado" : "não definido (armazenamento JSON local)"}
+              <span>
+                <strong>Banco de dados:</strong>{" "}
+                {config.databaseConfigured ? (
+                  <>
+                    PostgreSQL {config.usingSupabase ? "(Supabase)" : ""} conectado via{" "}
+                    <code className="rounded bg-slate-100 px-1">DATABASE_URL</code>. As tabelas são
+                    criadas automaticamente na primeira execução.
+                  </>
+                ) : (
+                  <>
+                    Arquivo JSON local (<code className="rounded bg-slate-100 px-1">.data</code>) —
+                    funciona para uso no computador. Para deploy (Vercel), configure o Supabase em{" "}
+                    <code className="rounded bg-slate-100 px-1">DATABASE_URL</code> (veja o README,
+                    seção “Supabase passo a passo”).
+                  </>
+                )}
+              </span>
             </li>
-            <li className="flex items-center gap-2 text-slate-500">
-              <span className="h-4 text-center text-slate-400">·</span>
-              Modo de armazenamento: <code className="rounded bg-slate-100 px-1">{config.store}</code>
+            <li className="flex items-start gap-2">
+              {config.sessionSecretSet ? (
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+              ) : (
+                <X className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" aria-hidden />
+              )}
+              <span>
+                SESSION_SECRET {config.sessionSecretSet ? "configurado" : "não definido (obrigatório em produção — gere com openssl rand -hex 32)"}
+              </span>
+            </li>
+            <li className="flex items-start gap-2">
+              {config.supabaseUrlSet || config.supabaseAnonKeySet || config.supabaseServiceKeySet ? (
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" aria-hidden />
+              ) : (
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+              )}
+              <span>
+                <strong>Supabase URL / Anon Key / Service Role Key:</strong>{" "}
+                {config.supabaseUrlSet || config.supabaseAnonKeySet || config.supabaseServiceKeySet
+                  ? "presentes no ambiente (este app não as usa — elas servem para outras integrações Supabase, como Auth/Storage)."
+                  : "não definidas — e está tudo bem: este app usa o Supabase como banco PostgreSQL direto (DATABASE_URL) e não precisa dessas chaves."}
+              </span>
             </li>
           </ul>
         </CardContent>

@@ -58,7 +58,7 @@ Funcionalidades do MVP:
 - **lucide-react** (ícones) e **clsx** (classes)
 - **Camada de persistência plugável**:
   - padrão: **arquivo JSON local** (`DATA_DIR`, zero configuração — dev/self-host);
-  - produção: **PostgreSQL/Supabase** via driver `pg` (`STORE=postgres` + `DATABASE_URL`), schema em `database/schema.sql`.
+  - produção: **PostgreSQL/Supabase** (`DATABASE_URL` — driver `pg` já incluído nas dependências) com **criação automática das tabelas** na primeira conexão.
 - **Providers de dados modulares** (`providers/`): Google Places, OpenStreetMap, Demonstração e Custom (API própria).
 
 > Por que Next.js? Deploy simples na Vercel, API Routes server-side (chaves de API **nunca** chegam ao navegador), SSR + responsividade e ecossistema maduro.
@@ -87,17 +87,31 @@ Acesse **http://localhost:3000**. Crie sua conta em `/login` (aba "Criar conta")
 
 Copie `.env.example` → `.env.local` (desenvolvimento) ou configure no painel da Vercel (produção). **Nenhum segredo vai para o repositório** (`.gitignore` já cobre `.env*`).
 
+O mínimo para funcionar bem (deploy com Supabase — veja a [seção 10](#10-como-conectar-ao-supabasepostgresql) para o passo a passo de onde clicar):
+
+```bash
+NEXT_PUBLIC_APP_URL=https://seu-dominio.com
+SESSION_SECRET=cole-um-valor-aleatorio-aqui    # openssl rand -hex 32
+DATABASE_URL=postgresql://postgres.xxxx:SENHA@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+```
+
+Pronto: com `DATABASE_URL` definida, o app **usa o Postgres/Supabase e cria as tabelas automaticamente** na primeira execução (auto-migração). Nada de rodar SQL à mão.
+
+> 💡 **E as chaves `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`?**
+> Este app **não precisa delas**. Ele usa o Supabase como banco PostgreSQL direto do servidor (via `DATABASE_URL`, server-side apenas) e tem **autenticação própria** (e-mail e senha dentro do próprio app). URL e Anon Key só seriam necessárias se você usasse Supabase Auth/Storage no navegador — as variáveis opcionais já estão previstas no `.env.example` caso um dia queira integrar.
+
+Variáveis completas:
+
 ```bash
 # Aplicação
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+SESSION_SECRET=                # obrigatório em produção
 
-# Sessão — OBRIGATÓRIO em produção. Gere com: openssl rand -hex 32
-SESSION_SECRET=
-
-# Banco (padrão: JSON local; veja seção 10 para Postgres/Supabase)
-STORE=json                # json | postgres
-DATABASE_URL=
-DATA_DIR=.data
+# Banco
+STORE=json                # json | postgres (opcional: com DATABASE_URL válida o Postgres é usado automaticamente)
+DATABASE_URL=             # Connection String do Supabase ou de qualquer PostgreSQL
+SUPABASE_DB_URL=          # alias opcional para a mesma string
+DATA_DIR=.data            # apenas no modo JSON local
 
 # Fontes de dados
 DATA_PROVIDER=auto        # auto | google | osm | demo | custom | none
@@ -107,6 +121,11 @@ DEMO_MODE=false           # true → empresas fictícias identificadas
 CUSTOM_PROVIDER_URL=      # sua API (veja seção 11)
 CUSTOM_PROVIDER_API_KEY=
 SEARCH_MAX_RESULTS=60
+
+# Opcionais (não usadas pelo app hoje)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 ```
 
 Prioridade do `auto`: `demo` (se `DEMO_MODE=true`) → `google` (se houver chave) → `custom` (se houver URL) → `osm` (se habilitado). Sem nada configurado, a busca mostra: *"Fonte de dados não configurada. Configure uma API compatível para realizar pesquisas reais."*
@@ -324,7 +343,9 @@ orca-prospect/
 | “Overpass está sob carga” | Instabilidade momentânea da API pública — aguarde e repita. |
 | Busca OSM não acha a cidade | Verifique nome/UF; o OSM precisa de cidade **ou** estado para delimitar a área. |
 | Erro 403 do Google | Habilite a **Places API (New)** e confira restrições/billing da chave. |
-| `STORE=postgres` falha | Instale `pg` (`npm i pg`), aplique `database/schema.sql` e confira `DATABASE_URL`. |
+| `STORE=postgres` falha | Instale nada — o driver `pg` já vem incluído. Confira a `DATABASE_URL` (senha correta? host certo?). Erros comuns aparecem com mensagens amigáveis no app. |
+| “password authentication failed” | Senha do banco errada na `DATABASE_URL`. No Supabase: *Settings → Database → Reset database password*, atualize a URL. |
+| Tabelas não apareceram no Supabase | Elas são criadas na **primeira requisição** após conectar. Faça um login/busca e atualize o Table Editor. |
 | Dados sumiram no deploy Vercel | Filesystem efêmero — use `STORE=postgres`. |
 
 ---

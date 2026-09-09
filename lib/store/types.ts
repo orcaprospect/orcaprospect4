@@ -111,6 +111,7 @@ export interface Store {
   // users
   getUserByEmail(email: string): Promise<UserRecord | null>;
   getUserById(id: string): Promise<UserRecord | null>;
+  countUsers(): Promise<number>;
   createUser(input: { name: string; email: string; passwordHash: string }): Promise<UserRecord>;
   updateUser(id: string, patch: UserPatch): Promise<UserRecord | null>;
 

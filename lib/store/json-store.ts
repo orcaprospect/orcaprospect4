@@ -76,6 +76,8 @@ export class JsonStore implements Store {
   }
 
   private save(): void {
+    // Garante que o diretório exista (ex.: se .data for apagado com o app rodando).
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(this.db, null, 2), "utf8");
     fs.renameSync(tmp, this.file);
@@ -90,6 +92,10 @@ export class JsonStore implements Store {
 
   async getUserById(id: string): Promise<UserRecord | null> {
     return this.db.users.find((u) => u.id === id) ?? null;
+  }
+
+  async countUsers(): Promise<number> {
+    return this.db.users.length;
   }
 
   async createUser(input: { name: string; email: string; passwordHash: string }): Promise<UserRecord> {

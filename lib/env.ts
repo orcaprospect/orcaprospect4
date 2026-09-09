@@ -16,6 +16,12 @@ export const env = {
 
   store: (process.env.STORE || "json").toLowerCase(),
   databaseUrl: process.env.DATABASE_URL || "",
+  /** Alias aceito para facilitar o Supabase (mesma Connection String). */
+  supabaseDbUrl: process.env.SUPABASE_DB_URL || "",
+  /** Supabase URL / Anon Key / Service Role (opcionais — não usadas pelo app). */
+  supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
   dataDir: process.env.DATA_DIR || ".data",
 
   dataProvider: (process.env.DATA_PROVIDER || "auto").toLowerCase(),

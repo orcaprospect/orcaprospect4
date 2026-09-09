@@ -1,9 +1,9 @@
 "use client";
 
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Rocket, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
@@ -17,12 +17,33 @@ export function LoginClient({ demoMode }: { demoMode: boolean }) {
   const next = params.get("next") || "/dashboard";
 
   const [mode, setMode] = useState<Mode>("login");
+  const [firstAccess, setFirstAccess] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+
+  // Primeiro acesso: se ainda não existe nenhum usuário, abre direto
+  // em "Criar conta" com uma orientação visível.
+  useEffect(() => {
+    let active = true;
+    api<{ hasUsers: boolean }>("/api/auth/status")
+      .then((s) => {
+        if (!active) return;
+        if (!s.hasUsers) {
+          setFirstAccess(true);
+          setMode("register");
+        }
+      })
+      .catch(() => {
+        // sem informação: mantém a aba Entrar
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const go = () => {
     router.replace(next);

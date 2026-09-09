@@ -1,12 +1,13 @@
 -- ============================================================
 -- Orça Prospect — schema PostgreSQL / Supabase
 -- ============================================================
--- Como usar:
---   Supabase: SQL Editor → cole este arquivo inteiro → Run.
---   psql:     psql "$DATABASE_URL" -f database/schema.sql
+-- OBSERVAÇÃO: você NÃO precisa rodar este arquivo manualmente.
+-- Na primeira conexão com DATABASE_URL o aplicativo cria as
+-- tabelas automaticamente (mesmo DDL embutido em lib/store/pg-schema.ts).
 --
--- O app usa este schema quando STORE=postgres e DATABASE_URL
--- estiverem definidos (requer: npm install pg).
+-- Para rodar manualmente (opcional):
+--   Supabase: SQL Editor → cole este arquivo → Run.
+--   psql:     psql "$DATABASE_URL" -f database/schema.sql
 -- ============================================================
 
 create extension if not exists "pgcrypto";
@@ -23,35 +24,35 @@ create table if not exists users (
 
 -- Empresas (compartilhadas entre usuários, com deduplicação)
 create table if not exists companies (
-  id              uuid primary key default gen_random_uuid(),
-  provider        text not null,                    -- google | osm | demo | custom
-  external_id     text not null,                    -- id na fonte
-  external_key    text not null unique,             -- provider:external_id
-  name            text not null,
-  normalized_name text not null,                    -- p/ dedupe entre fontes
-  category        text,
-  city            text,
-  state           text,
-  country         text,
-  address         text,
-  website         text,
-  instagram       text,
-  phone           text,
-  whatsapp        text,
-  email           text,
-  description     text,
-  services        jsonb   not null default '[]',
-  signals         jsonb   not null default '{}',    -- sinais verificados pela fonte
-  source_url      text,
-  created_at      timestamptz not null default now(),  -- "data de coleta"
-  updated_at      timestamptz not null default now(),  -- última atualização
-  last_seen_at    timestamptz not null default now()
+  id               uuid primary key default gen_random_uuid(),
+  provider         text not null,                    -- google | osm | demo | custom
+  external_id      text not null,                    -- id na fonte
+  external_key     text not null unique,             -- provider:external_id
+  name             text not null,
+  normalized_name  text not null default '',         -- nome sem acento/pontuação (dedupe)
+  normalized_city  text not null default '',         -- cidade normalizada (dedupe)
+  normalized_state text not null default '',         -- UF normalizada (dedupe)
+  category         text,
+  city             text,
+  state            text,
+  country          text,
+  address          text,
+  website          text,
+  instagram        text,
+  phone            text,
+  whatsapp         text,
+  email            text,
+  description      text,
+  services         jsonb   not null default '[]',
+  signals          jsonb   not null default '{}',    -- sinais verificados pela fonte
+  source_url       text,
+  created_at       timestamptz not null default now(),  -- "data de coleta"
+  updated_at       timestamptz not null default now(),  -- última atualização
+  last_seen_at     timestamptz not null default now()
 );
 
-create index if not exists companies_norm_idx
-  on companies (normalized_name,
-                coalesce(lower(regexp_replace(translate(city, 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc'), '[^a-z]', '', 'g')), ''),
-                coalesce(lower(regexp_replace(translate(state, 'áàâãäéèêëíìîïóòôõöúùûüç', 'aaaaaeeeeiiiiooooouuuuc'), '[^a-z]', '', 'g')), ''));
+create index if not exists companies_dedupe_idx
+  on companies (normalized_name, normalized_city, normalized_state);
 
 -- Favoritos ("Meus leads" salvos)
 create table if not exists favorites (
@@ -75,6 +76,9 @@ create table if not exists leads (
   updated_at     timestamptz not null default now(),
   unique (user_id, company_id)
 );
+
+-- Tags do lead (jsonb)
+alter table leads add column if not exists tags jsonb not null default '[]';
 
 create index if not exists leads_user_idx on leads (user_id, updated_at desc);
 
@@ -121,9 +125,12 @@ create index if not exists searches_user_idx on searches (user_id, created_at de
 
 -- ============================================================
 -- Notas sobre Supabase:
--- - O MVP acessa o Postgres com service role a partir das API
---   Routes (server-side apenas), mantendo o isolamento por
+-- - O MVP acessa o Postgres com a Connection String a partir das
+--   API Routes (server-side apenas), mantendo o isolamento por
 --   user_id na camada de aplicação.
+-- - A Supabase URL / Anon Key NÃO são usadas por este app (a
+--   autenticação é própria). Elas só seriam necessárias para
+--   integrações adicionais (Supabase Auth, Storage etc.).
 -- - Se você expuser tabelas via PostgREST, HABILITE RLS e crie
 --   policies por user_id. Exemplo:
 --
