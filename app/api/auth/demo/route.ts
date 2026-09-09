@@ -4,6 +4,7 @@ import { handleRoute, jsonError } from "@/lib/api";
 import { assertSameOrigin, hashPassword, setSessionCookie } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { getStore } from "@/lib/store";
+import { supabaseAuthConfigured } from "@/lib/supabase/config";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,12 @@ export async function POST(req: Request) {
       return jsonError(
         "A conta de demonstração está disponível apenas com DEMO_MODE=true.",
         403
+      );
+    }
+    if (supabaseAuthConfigured()) {
+      return jsonError(
+        "A conta de demonstração só existe no modo local (sem Supabase Auth). Crie sua conta normalmente pelo Supabase.",
+        400
       );
     }
 

@@ -155,6 +155,19 @@ export class PgStore implements Store {
     return rows[0] ?? null;
   }
 
+  /** Cria/atualiza o perfil local a partir de uma conta Supabase Auth (mesmo id uuid). */
+  async upsertUser(input: { id: string; name: string; email: string }): Promise<UserRecord> {
+    const rows = await this.query(
+      `insert into users (id, name, email, password_hash)
+       values ($1, $2, $3, '')
+       on conflict (id) do update
+         set name = excluded.name, email = excluded.email, updated_at = now()
+       returning id, name, email, password_hash as "passwordHash", created_at as "createdAt"`,
+      [input.id, input.name, input.email.trim().toLowerCase()]
+    );
+    return rows[0];
+  }
+
   // ---------------- companies (dedupe/upsert) ----------------
 
   async upsertCompany(input: CompanyInput): Promise<CompanyRecord> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Rocket, Sparkles } from "lucide-react";
+import { ArrowRight, MailCheck, Rocket, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,7 +11,12 @@ import { api } from "@/lib/api-client";
 
 type Mode = "login" | "register";
 
-export function LoginClient({ demoMode }: { demoMode: boolean }) {
+interface LoginClientProps {
+  demoMode: boolean;
+  authMode: "supabase" | "local";
+}
+
+export function LoginClient({ demoMode, authMode }: LoginClientProps) {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
@@ -184,7 +189,7 @@ export function LoginClient({ demoMode }: { demoMode: boolean }) {
               </Button>
             </form>
 
-            {demoMode && (
+            {demoMode && authMode === "local" && (
               <>
                 <div className="my-5 flex items-center gap-3">
                   <span className="h-px flex-1 bg-slate-200" />

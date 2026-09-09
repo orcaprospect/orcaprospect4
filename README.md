@@ -55,6 +55,7 @@ Funcionalidades do MVP:
 - **TypeScript** (modo estrito) — `npm run typecheck`
 - **Tailwind CSS 3.4** (design system próprio com componentes reutilizáveis em `components/ui`)
 - **Zod** para validação de inputs (server e client)
+- **Supabase Auth** (opcional, via `@supabase/ssr`): com `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`, as contas ficam hospedadas no Supabase; sem as chaves, o app usa autenticação própria embutida
 - **lucide-react** (ícones) e **clsx** (classes)
 - **Camada de persistência plugável**:
   - padrão: **arquivo JSON local** (`DATA_DIR`, zero configuração — dev/self-host);
@@ -97,8 +98,11 @@ DATABASE_URL=postgresql://postgres.xxxx:SENHA@aws-0-sa-east-1.pooler.supabase.co
 
 Pronto: com `DATABASE_URL` definida, o app **usa o Postgres/Supabase e cria as tabelas automaticamente** na primeira execução (auto-migração). Nada de rodar SQL à mão.
 
-> 💡 **E as chaves `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`?**
-> Este app **não precisa delas**. Ele usa o Supabase como banco PostgreSQL direto do servidor (via `DATABASE_URL`, server-side apenas) e tem **autenticação própria** (e-mail e senha dentro do próprio app). URL e Anon Key só seriam necessárias se você usasse Supabase Auth/Storage no navegador — as variáveis opcionais já estão previstas no `.env.example` caso um dia queira integrar.
+> 💡 **Como as chaves do Supabase se encaixam (você + sócio):**
+> - **`DATABASE_URL`** → onde ficam os **dados** (leads, empresas, favoritos). Necessária em produção.
+> - **`NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`** → onde ficam as **contas** (cadastro/login pelo Supabase Auth). Com elas, cada um de vocês cria a própria conta na tela de login — o app não precisa gerenciar senhas.
+> - Definindo só `DATABASE_URL`: funciona com contas locais (senhas com hash no próprio banco — também seguras).
+> - A **anon key é pública por design** (não é segredo) — a proteção real fica no servidor e nas políticas do Supabase.
 
 Variáveis completas:
 
@@ -122,7 +126,7 @@ CUSTOM_PROVIDER_URL=      # sua API (veja seção 11)
 CUSTOM_PROVIDER_API_KEY=
 SEARCH_MAX_RESULTS=60
 
-# Opcionais (não usadas pelo app hoje)
+# Contas via Supabase Auth (URL + Anon Key → ativa o login gerenciado)
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
@@ -132,9 +136,9 @@ Prioridade do `auto`: `demo` (se `DEMO_MODE=true`) → `google` (se houver chave
 
 ## 5. Como configurar o banco
 
-**Modo padrão (JSON local)** — não exige nada: os dados ficam em `DATA_DIR/orca-prospect.json` (gitignored). Ideal para desenvolvimento e self-hosting de processo único.
+**Modo recomendado (PostgreSQL/Supabase)** — basta colar a `DATABASE_URL`; o schema é aplicado **automaticamente** na primeira conexão (auto-migração idempotente — ver `lib/store/pg-schema.ts`). Passo a passo completo na seção 10.
 
-**Modo PostgreSQL/Supabase** — veja a seção 10.
+**Modo JSON local** — para testar no computador sem banco algum: os dados ficam em `DATA_DIR/orca-prospect.json` (gitignored). Único processo, dev/self-host. (Não serve para Vercel: o filesystem é efêmero.)
 
 Tabelas (conforme especificação): `users`, `companies`, `leads`, `favorites`, `searches`, `notes`, `tags` (+ `lead_tags`). Cada empresa tem identificador único (`external_key = provider:external_id`) e **deduplicação** dupla:
 
@@ -195,25 +199,78 @@ O projeto está **preparado para a Vercel**:
 
 ## 10. Como conectar ao Supabase/PostgreSQL
 
+O Supabase é usado em **duas frentes** (pode usar as duas — recomendado para você + sócio):
+
+| Frente | Variáveis | Para quê |
+|---|---|---|
+| **Dados** | `DATABASE_URL` | Leads, empresas, favoritos, notas (banco PostgreSQL). |
+| **Contas** | `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Cadastro/login de cada pessoa via **Supabase Auth**. |
+
+### Guia para iniciantes — do zero ao funcionando (~10 minutos)
+
+**Passo 1 — Criar a conta Supabase**
+1. Acesse **https://supabase.com** → **Start your project**.
+2. Entre com GitHub ou e-mail (plano gratuito — **no credit card necessário**).
+
+**Passo 2 — Criar o projeto**
+1. No painel, clique em **New project**.
+2. Preencha: *Name* = `orca-prospect`; *Database Password* = **Generate a password** e **GUARDE essa senha**; *Region* = **South America (São Paulo)**; **Create new project** (aguarde ~2 min).
+
+**Passo 3 — Pegar as 3 credenciais**
+
+| Credencial | Onde está no painel | Vai para |
+|---|---|---|
+| **Project URL** | ⚙️ *Project Settings* → **API** → *Project URL* | `NEXT_PUBLIC_SUPABASE_URL` |
+| **Anon public key** | ⚙️ *Project Settings* → **API** → *Project API Keys* → `anon` `public` | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+| **Connection String** | Botão **Connect** (barra superior) → aba **Session pooler** → copie a URI | `DATABASE_URL` |
+
+A Connection String parece com:
+`postgresql://postgres.abcdefghijk:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`
+→ troque `[YOUR-PASSWORD]` pela senha do Passo 2.
+
+**Passo 4 — Colar no app**
+
+`.env.local` (local) ou *Settings → Environment Variables* na Vercel:
 ```bash
-# 1. Instale o driver
-npm install pg
-
-# 2. Aplique o schema (Supabase: SQL Editor → colar database/schema.sql → Run)
-psql "$DATABASE_URL" -f database/schema.sql
-#    ou no Supabase: Project Settings → Database → Connection string (use a "Pooler")
-
-# 3. Ambiente
-STORE=postgres
-DATABASE_URL=postgresql://usuario:senha@host:5432/postgres
-
-# 4. Reinicie
-npm run build && npm run start
+# Dados
+DATABASE_URL=postgresql://postgres.abcdefghijk:SENHA@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+# Contas (Supabase Auth)
+NEXT_PUBLIC_SUPABASE_URL=https://abcdefghijk.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...   # a chave "anon public"
+# Segurança dos cookies
+SESSION_SECRET=valor-aleatorio                # openssl rand -hex 32
 ```
 
-Notas:
-- `lib/store/pg-store.ts` implementa a mesma interface `Store` do modo JSON — **nenhuma outra parte do código muda**.
-- No Supabase, o acesso é server-side (API Routes). Se expor tabelas via PostgREST, habilite **RLS** (exemplos no final de `database/schema.sql`).
+**Passo 5 — Desativar a confirmação por e-mail (recomendado para ferramenta interna)**
+1. No painel: **Authentication** → **Sign In / Providers** (ou *Providers → Email*).
+2. Desative **"Confirm email"** → *Save*.
+- Assim a conta é criada e o acesso é imediato, sem clicar em link de e-mail.
+- Se preferir manter ligado, funciona igual: a tela avisa "Confirme seu e-mail clicando no link que enviamos".
+
+**Passo 6 — Criar as contas de vocês dois ✅**
+1. Abra o app (`/login`) → aba **Criar conta**.
+2. Cada um cria a sua com **nome + e-mail + senha** (você no seu navegador, o sócio no dele).
+3. Pronto: cada conta tem seu próprio pipeline de leads, salvo no Supabase.
+
+**Passo 7 — Conferir**
+- **Table Editor**: as tabelas (`users`, `companies`, `leads`, `favorites`, `notes`, `tags`, `searches`) são **criadas automaticamente** na primeira execução — não rode SQL à mão.
+- **Authentication → Users**: as contas de vocês aparecem lá.
+- Esqueceu a senha? No painel: **Authentication → Users** → ⋯ na conta → **Send password recovery**.
+
+### Perguntas rápidas
+
+- **A anon key pode ficar exposta?** Sim — ela é pública por design ("anon public"). Quem protege os dados é o servidor do app (todas as operações passam por ele) e as políticas do Supabase. Nunca exponha a `service_role` key.
+- **Preciso das duas frentes?** Não: só `DATABASE_URL` já funciona (contas locais, senha com hash no banco). Com URL+Anon Key, as contas ficam no Supabase Auth — mais prático para 2+ pessoas (recuperação de senha pronta, 2FA opcional).
+- **Perdi a senha do banco?** *Project Settings → Database* → **Reset database password** e atualize a `DATABASE_URL`.
+- **Quer rodar o SQL manualmente?** Opcional: **SQL Editor** → cole `database/schema.sql` → **Run** (o app também cria sozinho).
+
+### Uso com PostgreSQL próprio (sem Supabase)
+
+```bash
+# Qualquer Postgres serve (local, Render, Neon, RDS…)
+DATABASE_URL=postgresql://usuario:senha@host:5432/banco
+# Sem NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, as contas funcionam em modo local.
+```
 
 ## 11. Como trocar o provider de empresas
 

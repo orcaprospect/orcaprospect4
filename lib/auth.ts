@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { getStore } from "@/lib/store";
 import { env } from "@/lib/env";
+import { supabaseAuthConfigured } from "@/lib/supabase/config";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SessionUser } from "@/types";
 
 /**

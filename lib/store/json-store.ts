@@ -120,6 +120,32 @@ export class JsonStore implements Store {
     return user;
   }
 
+  /** Perfil sincronizado do Supabase Auth (mesmo id uuid, sem senha local). */
+  async upsertUser(input: { id: string; name: string; email: string }): Promise<UserRecord> {
+    const email = input.email.trim().toLowerCase();
+    let user = this.db.users.find((u) => u.id === input.id) ?? null;
+    if (!user) {
+      const byEmail = this.db.users.find((u) => u.email === email);
+      if (byEmail && !byEmail.passwordHash) user = byEmail; // migra perfil vindo do Supabase
+    }
+    if (user) {
+      user.name = input.name;
+      user.email = email;
+      this.save();
+      return user;
+    }
+    const created: UserRecord = {
+      id: input.id || uid(),
+      name: input.name,
+      email,
+      passwordHash: "",
+      createdAt: nowIso(),
+    };
+    this.db.users.push(created);
+    this.save();
+    return created;
+  }
+
   // ---------------- companies (dedupe/upsert) ----------------
 
   async upsertCompany(input: CompanyInput): Promise<CompanyRecord> {

@@ -114,6 +114,8 @@ export interface Store {
   countUsers(): Promise<number>;
   createUser(input: { name: string; email: string; passwordHash: string }): Promise<UserRecord>;
   updateUser(id: string, patch: UserPatch): Promise<UserRecord | null>;
+  /** Cria/atualiza o perfil local a partir de uma conta Supabase Auth (mesmo id uuid). */
+  upsertUser(input: { id: string; name: string; email: string }): Promise<UserRecord>;
 
   // companies (dedupe + upsert)
   upsertCompany(input: CompanyInput): Promise<CompanyRecord>;

@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { LoginClient } from "@/components/auth/login-client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { env } from "@/lib/env";
+import { authMode } from "@/lib/supabase/config";
 
 export const metadata: Metadata = { title: "Entrar" };
 
@@ -15,7 +16,7 @@ export default function LoginPage() {
         </div>
       }
     >
-      <LoginClient demoMode={env.demoMode} />
+      <LoginClient demoMode={env.demoMode} authMode={authMode()} />
     </Suspense>
   );
 }

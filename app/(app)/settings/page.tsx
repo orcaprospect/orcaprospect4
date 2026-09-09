@@ -4,6 +4,7 @@ import { SettingsClient } from "@/components/settings/settings-client";
 import { getSessionUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { storeInfo } from "@/lib/store";
+import { authMode } from "@/lib/supabase/config";
 import { providerStatuses } from "@/providers";
 
 export const metadata: Metadata = { title: "Configurações" };
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
       user={{ name: user.name, email: user.email }}
       providers={providerStatuses()}
       config={{
+        authMode: authMode(),
         storeMode: db.mode,
         usingSupabase: db.usingSupabase,
         databaseConfigured: db.databaseConfigured,

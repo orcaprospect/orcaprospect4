@@ -15,6 +15,7 @@ interface SettingsProps {
   user: { name: string; email: string };
   providers: ProviderStatus[];
   config: {
+    authMode: "supabase" | "local";
     storeMode: "postgres" | "json";
     usingSupabase: boolean;
     databaseConfigured: boolean;
@@ -299,16 +300,19 @@ DEMO_MODE=true`}
               </span>
             </li>
             <li className="flex items-start gap-2">
-              {config.supabaseUrlSet || config.supabaseAnonKeySet || config.supabaseServiceKeySet ? (
+              {config.authMode === "supabase" ? (
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" aria-hidden />
               ) : (
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
               )}
               <span>
-                <strong>Supabase URL / Anon Key / Service Role Key:</strong>{" "}
-                {config.supabaseUrlSet || config.supabaseAnonKeySet || config.supabaseServiceKeySet
-                  ? "presentes no ambiente (este app não as usa — elas servem para outras integrações Supabase, como Auth/Storage)."
-                  : "não definidas — e está tudo bem: este app usa o Supabase como banco PostgreSQL direto (DATABASE_URL) e não precisa dessas chaves."}
+                <strong>Contas (login):</strong>{" "}
+                {config.authMode === "supabase"
+                  ? "Supabase Auth ativo — as contas (sua e do seu sócio) ficam hospedadas no Supabase, via NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_ANON_KEY. Cada pessoa cria a própria conta na tela de login."
+                  : "modo local — contas salvas no banco do próprio app. Para contas na nuvem do Supabase (ideal para você + sócio), defina NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY (README, seção 10)."}
+                {config.supabaseServiceKeySet
+                  ? " SUPABASE_SERVICE_ROLE_KEY presente (não é usada pelo app)."
+                  : ""}
               </span>
             </li>
           </ul>
