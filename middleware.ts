@@ -43,17 +43,26 @@ export async function middleware(req: NextRequest) {
       );
     }
 
+    // Copia os cookies (tokens renovados) para a resposta final — inclusive
+    // redirects, senão o refresh se perde e a sessão "pula".
+    const finalize = (res: NextResponse): NextResponse => {
+      for (const cookie of response.cookies.getAll()) {
+        res.cookies.set(cookie.name, cookie.value);
+      }
+      return res;
+    };
+
     if (isApi) return response;
 
     const isProtected = PROTECTED_PREFIXES.some(
       (p) => pathname === p || pathname.startsWith(`${p}/`)
     );
-    if (isProtected && !user) return loginRedirect(req);
+    if (isProtected && !user) return finalize(loginRedirect(req));
     if (AUTH_PAGES.includes(pathname) && user) {
       const url = req.nextUrl.clone();
       url.pathname = "/dashboard";
       url.search = "";
-      return NextResponse.redirect(url);
+      return finalize(NextResponse.redirect(url));
     }
     return response;
   }

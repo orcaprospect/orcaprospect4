@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo, LogoMark } from "@/components/layout/logo";
 import { cn, initials } from "@/lib/utils";
@@ -34,7 +34,6 @@ interface AppShellProps {
 
 export function AppShell({ user, demoMode, children }: AppShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenu, setUserMenu] = useState(false);
 
@@ -47,8 +46,7 @@ export function AppShell({ user, demoMode, children }: AppShellProps) {
     try {
       await api("/api/auth/logout", { method: "POST" });
     } finally {
-      router.replace("/login");
-      router.refresh();
+      window.location.replace("/login");
     }
   };
 

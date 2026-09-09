@@ -430,6 +430,8 @@ orca-prospect/
 | “password authentication failed” | Senha do banco errada na `DATABASE_URL`. No Supabase: *Settings → Database → Reset database password*, atualize a URL. |
 | Tabelas não apareceram no Supabase | Elas são criadas na **primeira requisição** após conectar. Faça um login/busca e atualize o Table Editor. |
 | Dados sumiram no deploy Vercel | Filesystem efêmero — use `STORE=postgres`. |
+| Login “entra” e cai de volta no /login | Corrigido na v0.3.1 (cookie `Secure` só em HTTPS + validação de sessão nas duas pontas). Atualize o projeto e **limpe os cookies do site** (ou abra em aba anônima) uma única vez. |
+| Modo Supabase: entro e volta pro login | Era um bug da v0.3.0 (sessão validava só o modo local). Corrigido na v0.3.1. Confira também se `DATABASE_URL` está certa — mas mesmo sem banco a sessão agora se mantém. |
 
 ---
 

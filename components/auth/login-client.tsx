@@ -2,7 +2,7 @@
 
 import { ArrowRight, MailCheck, Rocket, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ interface LoginClientProps {
 }
 
 export function LoginClient({ demoMode, authMode }: LoginClientProps) {
-  const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
 
@@ -51,8 +50,10 @@ export function LoginClient({ demoMode, authMode }: LoginClientProps) {
   }, []);
 
   const go = () => {
-    router.replace(next);
-    router.refresh();
+    // Navegação "dura": garante que o navegador aplique os cookies da
+    // sessão e que o middleware/layout reavaliem do zero (sem cache do
+    // roteador client — evita entrar e cair de volta no login).
+    window.location.replace(next);
   };
 
   const submit = async (e: React.FormEvent) => {

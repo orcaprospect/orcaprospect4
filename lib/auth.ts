@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getStore } from "@/lib/store";
 import { env } from "@/lib/env";
 import { SESSION_FALLBACK_SECRET } from "@/lib/auth-cookie";
@@ -74,10 +74,21 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 export async function setSessionCookie(userId: string): Promise<void> {
   const store = cookies();
+  // Flag Secure apenas quando o acesso é de fato HTTPS. Se marcássemos
+  // "Secure" só por estar em modo produção, acessos por HTTP (ex.:
+  // http://192.168.x.x:3000 na rede local) teriam o cookie REJEITADO
+  // pelo navegador — o login "funciona" mas a sessão nunca grava.
+  let isHttps = false;
+  try {
+    const proto = headers().get("x-forwarded-proto");
+    isHttps = proto === "https";
+  } catch {
+    isHttps = false;
+  }
   store.set(SESSION_COOKIE, createSessionToken(userId), {
     httpOnly: true,
     sameSite: "lax",
-    secure: env.nodeEnv === "production",
+    secure: isHttps,
     path: "/",
     maxAge: SESSION_MAX_AGE,
   });
@@ -88,8 +99,44 @@ export async function clearSessionCookie(): Promise<void> {
   store.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
-/** Retorna o usuário autenticado ou null. */
+/** Retorna o usuário autenticado (Supabase Auth ou modo local) ou null. */
 export async function getSessionUser(): Promise<SessionUser | null> {
+  // ---- Modo Supabase Auth (NEXT_PUBLIC_SUPABASE_URL + ANON_KEY) ----
+  if (supabaseAuthConfigured()) {
+    try {
+      const supabase = createSupabaseServerClient();
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user?.email) return null;
+      const u = data.user;
+      const name =
+        typeof u.user_metadata?.name === "string" && u.user_metadata.name
+          ? (u.user_metadata.name as string)
+          : u.email!.split("@")[0];
+      // A sessão NÃO pode depender da sincronização do perfil: se o banco
+      // estiver fora/errado, o usuário continua logado (o perfil é
+      // sincronizado nas próximas requisições).
+      try {
+        const rec = await getStore().upsertUser({ id: u.id, name, email: u.email! });
+        return { id: rec.id, name: rec.name, email: rec.email, createdAt: rec.createdAt };
+      } catch (storeError) {
+        console.error(
+          "[auth:supabase] Não foi possível sincronizar o perfil no banco:",
+          storeError instanceof Error ? storeError.message : storeError
+        );
+        return {
+          id: u.id,
+          name,
+          email: u.email!,
+          createdAt: u.created_at ?? new Date().toISOString(),
+        };
+      }
+    } catch (error) {
+      console.error("[auth:supabase]", error);
+      return null;
+    }
+  }
+
+  // ---- Modo local (cookie próprio assinado) ----
   const token = cookies().get(SESSION_COOKIE)?.value;
   const userId = verifySessionToken(token);
   if (!userId) return null;
