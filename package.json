@@ -1,0 +1,32 @@
+{
+  "name": "orca-prospect",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orça Prospect — prospecção B2B de empresas com potencial de automação de orçamentos para o OrçaAI.",
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.441.0",
+    "next": "^14.2.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4"
+  }
+}

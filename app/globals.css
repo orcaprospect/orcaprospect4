@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+  ::selection {
+    @apply bg-indigo-600/20;
+  }
+}
+
+@layer utilities {
+  /* Scrollbar discreta */
+  .thin-scrollbar::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-slate-300;
+  }
+  .thin-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
