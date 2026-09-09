@@ -2,6 +2,7 @@
 import crypto from "node:crypto";
 import { Pool } from "pg";
 import { normalizeLocation, normalizeName } from "../utils";
+import { isStoreError, StoreError } from "./errors";
 import { PG_SCHEMA_SQL } from "./pg-schema";
 import type {
   CompanyInput,
@@ -75,23 +76,37 @@ export class PgStore implements Store {
   }
 
   private friendlyError(error: unknown): Error {
+    // Já é um erro de armazenamento tratado? Não embrulha de novo.
+    if (isStoreError(error)) return error;
     const e = error as { code?: string; message?: string };
     const code = e?.code ?? "";
     const msg = e?.message ?? "erro desconhecido";
+    // Connection string colada com o placeholder do Supabase
+    if (/\[YOUR-PASSWORD\]/i.test(this.connectionString)) {
+      return new StoreError(
+        "A Connection String do Supabase ainda contém [YOUR-PASSWORD].",
+        "Abra o painel do Supabase → botão Connect → aba Session pooler → copie a URL novamente e SUBSTITUA [YOUR-PASSWORD] pela senha que você gerou na criação do projeto. Se a senha tiver caracteres especiais (@ # / : %), use a versão codificada (ex.: @ → %40)."
+      );
+    }
     if (code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "ETIMEDOUT") {
-      return new Error(
-        "Não foi possível conectar ao banco PostgreSQL/Supabase (host inacessível). Verifique a DATABASE_URL (host/porta) e sua conexão."
+      return new StoreError(
+        "Não foi possível conectar ao banco PostgreSQL/Supabase (host inacessível). Verifique a DATABASE_URL (host/porta) e sua conexão.",
+        "Confira se a DATABASE_URL está completa e sem espaços/aspas extras. No Supabase, copie novamente em Connect → Session pooler."
       );
     }
     if (code === "28P01" || code === "28000" || /password authentication failed/i.test(msg)) {
-      return new Error(
-        "Credenciais do banco incorretas (usuário/senha). Verifique a DATABASE_URL — no Supabase, copie a Connection String novamente e substitua [YOUR-PASSWORD] pela senha do projeto."
+      return new StoreError(
+        "Credenciais do banco incorretas (usuário/senha).",
+        "No Supabase: Project Settings → Database → Reset database password, atualize a senha na DATABASE_URL e reinicie/deploy novamente."
       );
     }
     if (code === "3D000") {
-      return new Error("Banco de dados não encontrado. Verifique o nome do banco na DATABASE_URL.");
+      return new StoreError(
+        "Banco de dados não encontrado.",
+        "Verifique o nome do banco no final da DATABASE_URL (no Supabase normalmente é /postgres)."
+      );
     }
-    return new Error(`Erro de banco de dados: ${msg}`);
+    return new StoreError(`Erro de banco de dados: ${msg}`);
   }
 
   private async query<T = any>(sql: string, params: unknown[] = []): Promise<T[]> {

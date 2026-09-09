@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { SettingsClient } from "@/components/settings/settings-client";
 import { getSessionUser } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { storeInfo } from "@/lib/store";
+import { isStoreError, storeInfo } from "@/lib/store";
 import { authMode } from "@/lib/supabase/config";
 import { providerStatuses } from "@/providers";
 
@@ -11,7 +11,17 @@ export const metadata: Metadata = { title: "Configurações" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const user = await getSessionUser();
+  let user;
+  try {
+    user = await getSessionUser();
+  } catch (error) {
+    if (isStoreError(error)) {
+      const params = new URLSearchParams({ msg: error.message });
+      if (error.hint) params.set("hint", error.hint);
+      redirect(`/database-error?${params.toString()}`);
+    }
+    throw error;
+  }
   if (!user) redirect("/login");
 
   const db = storeInfo();

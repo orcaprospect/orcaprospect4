@@ -61,4 +61,5 @@ export function getStore(): Store {
   return instance;
 }
 
+export { isStoreError, StoreError } from "./errors";
 export type { Store };

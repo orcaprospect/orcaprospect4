@@ -431,6 +431,8 @@ orca-prospect/
 | Tabelas não apareceram no Supabase | Elas são criadas na **primeira requisição** após conectar. Faça um login/busca e atualize o Table Editor. |
 | Dados sumiram no deploy Vercel | Filesystem efêmero — use `STORE=postgres`. |
 | Login “entra” e cai de volta no /login | Corrigido na v0.3.1 (cookie `Secure` só em HTTPS + validação de sessão nas duas pontas). Atualize o projeto e **limpe os cookies do site** (ou abra em aba anônima) uma única vez. |
+| Tela “Não foi possível acessar o banco de dados” (com checklist) | O app detectou falha de armazenamento e te mostra o checklist na própria página. Causas mais comuns: ① a `DATABASE_URL` ainda contém `[YOUR-PASSWORD]` (troque pela senha gerada); ② senha com caracteres especiais sem codificar (`@` → `%40`, `#` → `%23`); ③ deploy na Vercel **sem** `DATABASE_URL` (o modo arquivo não funciona lá — configure o Supabase, seção 10). |
+| “Erro inesperado… Ref.: XXXXXXX” | Erro genérico de servidor. Rode `GET /api/health` para ver o modo de banco/auth configurado; o log do servidor mostra o detalhe. Falhas de banco agora costumam cair na página amigável acima. |
 | Modo Supabase: entro e volta pro login | Era um bug da v0.3.0 (sessão validava só o modo local). Corrigido na v0.3.1. Confira também se `DATABASE_URL` está certa — mas mesmo sem banco a sessão agora se mantém. |
 
 ---

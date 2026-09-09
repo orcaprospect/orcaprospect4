@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { normalizeLocation, normalizeName } from "../utils";
+import { StoreError } from "./errors";
 import type {
   CompanyInput,
   CompanyRecord,
@@ -60,7 +61,15 @@ export class JsonStore implements Store {
 
   constructor(dataDir: string) {
     const dir = path.resolve(process.cwd(), dataDir);
-    fs.mkdirSync(dir, { recursive: true });
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      throw new StoreError(
+        "Não foi possível criar a pasta de armazenamento local (DATA_DIR).",
+        `Detalhe: ${err.message ?? err}. Verifique permissões ou use o Supabase via DATABASE_URL.`
+      );
+    }
     this.file = path.join(dir, "orca-prospect.json");
     this.db = this.load();
   }
@@ -76,11 +85,28 @@ export class JsonStore implements Store {
   }
 
   private save(): void {
-    // Garante que o diretório exista (ex.: se .data for apagado com o app rodando).
-    fs.mkdirSync(path.dirname(this.file), { recursive: true });
-    const tmp = `${this.file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(this.db, null, 2), "utf8");
-    fs.renameSync(tmp, this.file);
+    try {
+      // Garante que o diretório exista (ex.: se .data for apagado com o app rodando).
+      fs.mkdirSync(path.dirname(this.file), { recursive: true });
+      const tmp = `${this.file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(this.db, null, 2), "utf8");
+      fs.renameSync(tmp, this.file);
+    } catch (error) {
+      const err = error as NodeJS.ErrnoException;
+      if (err.code === "EROFS" || err.code === "EACCES" || err.code === "EBADF") {
+        throw new StoreError(
+          "O armazenamento local está indisponível (sistema de arquivos somente leitura).",
+          "Esse modo grava um arquivo em DATA_DIR e funciona no seu computador, mas NÃO em deploys serverless (Vercel). Para deploy, configure um Supabase e defina DATABASE_URL (veja o README, seção 10)."
+        );
+      }
+      if (err.code === "ENOSPC") {
+        throw new StoreError("Sem espaço em disco para salvar os dados.");
+      }
+      throw new StoreError(
+        `Falha ao salvar os dados localmente: ${err.message ?? err}`,
+        "Verifique a permissão da pasta DATA_DIR ou migre para o Supabase (DATABASE_URL)."
+      );
+    }
   }
 
   // ---------------- users ----------------

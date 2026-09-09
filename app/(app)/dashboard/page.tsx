@@ -9,7 +9,7 @@ import { Field, Input } from "@/components/ui/input";
 import { StatCard } from "@/components/ui/stat-card";
 import { getSessionUser } from "@/lib/auth";
 import { scoreCompany } from "@/lib/score";
-import { getStore } from "@/lib/store";
+import { getStore, isStoreError } from "@/lib/store";
 import { LEAD_STATUS_LABELS } from "@/types";
 import type { LeadStatus } from "@/types";
 
@@ -21,11 +21,21 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   const store = getStore();
-  const [leads, favorites, searches] = await Promise.all([
-    store.listLeads(user.id),
-    store.listFavorites(user.id),
-    store.listSearches(user.id, 6),
-  ]);
+  let leads, favorites, searches;
+  try {
+    [leads, favorites, searches] = await Promise.all([
+      store.listLeads(user.id),
+      store.listFavorites(user.id),
+      store.listSearches(user.id, 6),
+    ]);
+  } catch (error) {
+    if (isStoreError(error)) {
+      const params = new URLSearchParams({ msg: error.message });
+      if (error.hint) params.set("hint", error.hint);
+      redirect(`/database-error?${params.toString()}`);
+    }
+    throw error;
+  }
 
   const companies = leads.length
     ? await store.getCompaniesByIds(leads.map((l) => l.companyId))
